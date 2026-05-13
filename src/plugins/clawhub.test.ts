@@ -182,6 +182,7 @@ type ArchiveInstallCall = {
 type InstallSuccess = {
   clawhub?: Record<string, unknown>;
   ok: true;
+  packageName?: string;
   pluginId?: string;
   version?: string;
 };
@@ -361,7 +362,7 @@ describe("installPluginFromClawHub", () => {
     expect(archiveCleanupMock).toHaveBeenCalledTimes(1);
   });
 
-  it("requires acknowledgement before downloading risky ClawHub releases", async () => {
+  it("stops before downloading ClawHub releases blocked from download", async () => {
     fetchClawHubPackageSecurityMock.mockResolvedValueOnce({
       package: {
         name: "demo",
@@ -386,11 +387,12 @@ describe("installPluginFromClawHub", () => {
       spec: "clawhub:demo",
       baseUrl: "https://clawhub.ai",
       logger,
+      acknowledgeClawHubRisk: true,
     });
 
     const failure = expectInstallFailure(result);
-    expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED);
-    expect(failure.error).toContain("--acknowledge-clawhub-risk");
+    expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_DOWNLOAD_BLOCKED);
+    expect(failure.error).toContain("blocked from download");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('ClawHub trust warning for "demo@2026.3.22"'),
     );
@@ -427,6 +429,40 @@ describe("installPluginFromClawHub", () => {
     expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED);
     expect(downloadClawHubPackageArchiveMock).not.toHaveBeenCalled();
     expect(installPluginFromArchiveMock).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes ClawHub trust warning fields before logging", async () => {
+    const logger = createLoggerSpies();
+    fetchClawHubPackageSecurityMock.mockResolvedValueOnce({
+      package: {
+        name: "demo",
+        displayName: "Demo",
+        family: "code-plugin",
+      },
+      release: {
+        version: "2026.3.22",
+      },
+      trust: {
+        scanStatus: "clean\u001b[2K",
+        moderationState: null,
+        blockedFromDownload: false,
+        reasons: ["bad\nreason"],
+        pending: false,
+        stale: false,
+      },
+    });
+
+    await installPluginFromClawHub({
+      spec: "clawhub:demo",
+      baseUrl: "https://clawhub.ai",
+      logger,
+    });
+
+    const warning = logger.warn.mock.calls[0]?.[0];
+    expect(warning).toContain("scan=clean");
+    expect(warning).toContain("bad\\nreason");
+    expect(warning).not.toContain("\u001b");
+    expect(warning).not.toContain("bad\nreason");
   });
 
   it("requires acknowledgement before downloading releases with unknown moderation state", async () => {
@@ -1320,6 +1356,10 @@ describe("installPluginFromClawHub", () => {
     expect(packageDetailCall().name).toBe("DemoAlias");
     expect(packageVersionCall().name).toBe("demo");
     expect(packageVersionCall().version).toBe("latest");
+    expect(packageSecurityCall().name).toBe("demo");
+    expect(archiveDownloadCall().name).toBe("demo");
+    expect(success.packageName).toBe("demo");
+    expect(success.clawhub?.clawhubPackage).toBe("demo");
     expect(logger.warn).toHaveBeenCalledWith(
       'ClawHub package "demo@2026.3.22" is missing sha256hash; falling back to files[] verification. Validated files: openclaw.plugin.json. Validated generated metadata files present in archive: _meta.json (JSON parse plus slug/version match only).',
     );
