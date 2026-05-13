@@ -1882,6 +1882,46 @@ describe("repairMissingConfiguredPluginInstalls", () => {
     );
   });
 
+  it("prefixes legacy persisted ClawHub package records in acknowledgement guidance", async () => {
+    const records = {
+      demo: {
+        source: "clawhub",
+        clawhubPackage: "@openclaw/plugin-demo",
+        installPath: "/missing/demo",
+      },
+    };
+    mocks.loadInstalledPluginIndexInstallRecords.mockResolvedValue(records);
+    mocks.updateNpmInstalledPlugins.mockResolvedValue({
+      changed: false,
+      config: { plugins: { installs: records } },
+      outcomes: [
+        {
+          pluginId: "demo",
+          status: "skipped",
+          message:
+            'Skipped demo ClawHub update: ClawHub release "@openclaw/plugin-demo@latest" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue. Existing installed plugin left unchanged.',
+        },
+      ],
+    });
+
+    const { repairMissingConfiguredPluginInstalls } =
+      await import("./missing-configured-plugin-install.js");
+    const result = await repairMissingConfiguredPluginInstalls({
+      cfg: {
+        plugins: {
+          entries: {
+            demo: { enabled: true },
+          },
+        },
+      },
+      env: {},
+    });
+
+    expect(result.warnings[0]).toContain(
+      "openclaw plugins install clawhub:@openclaw/plugin-demo --acknowledge-clawhub-risk",
+    );
+  });
+
   it("repairs a broken managed package entry from its attributed registry diagnostic", async () => {
     const records = {
       demo: {

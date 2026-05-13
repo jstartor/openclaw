@@ -129,7 +129,13 @@ function recordClawHubInstallSpec(record: PluginInstallRecord | undefined): stri
   if (!record || record.source !== "clawhub") {
     return undefined;
   }
-  return record.spec ?? record.clawhubPackage;
+  if (record.spec) {
+    return record.spec;
+  }
+  if (record.clawhubPackage) {
+    return `clawhub:${record.clawhubPackage}`;
+  }
+  return undefined;
 }
 
 function resolveCandidateClawHubSpec(install: PluginPackageInstall): string | undefined {
