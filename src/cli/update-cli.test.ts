@@ -283,7 +283,8 @@ const { runCommandWithTimeout } = await import("../process/exec.js");
 const { runDaemonRestart, runDaemonInstall } = await import("./daemon-cli.js");
 const { doctorCommand } = await import("../commands/doctor.js");
 const { defaultRuntime } = await import("../runtime.js");
-const { updateCommand, updateStatusCommand, updateWizardCommand } = await import("./update-cli.js");
+const { registerUpdateCli, updateCommand, updateStatusCommand, updateWizardCommand } =
+  await import("./update-cli.js");
 const updateCliShared = await import("./update-cli/shared.js");
 const { resolveGitInstallDir } = updateCliShared;
 const { spawnSync } = await import("node:child_process");
@@ -1652,6 +1653,29 @@ describe("update-cli", () => {
     expect(seenJson).toBe(true);
   });
 
+  it("parses update --acknowledge-clawhub-risk as the update command option", async () => {
+    const tempDir = createCaseDir("openclaw-update");
+    mockPackageInstallStatus(tempDir);
+    const program = new Command();
+    program.name("openclaw");
+    program.exitOverride();
+    registerUpdateCli(program);
+
+    await program.parseAsync([
+      "node",
+      "openclaw",
+      "update",
+      "--channel",
+      "beta",
+      "--yes",
+      "--no-restart",
+      "--acknowledge-clawhub-risk",
+    ]);
+
+    expect(syncPluginCall()?.acknowledgeClawHubRisk).toBe(true);
+    expect(npmPluginUpdateCall()?.acknowledgeClawHubRisk).toBe(true);
+  });
+
   it.each([
     {
       name: "defaults to dev channel for git installs when unset",
@@ -2965,7 +2989,6 @@ describe("update-cli", () => {
 
     await updateCommand({
       channel: "beta",
-      yes: true,
       restart: false,
     });
 
