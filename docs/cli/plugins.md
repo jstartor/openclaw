@@ -138,7 +138,7 @@ is available, then fall back to `latest`.
 
   </Accordion>
   <Accordion title="--acknowledge-clawhub-risk">
-    ClawHub installs check the selected release trust record before downloading the package. If ClawHub reports a risky scan status, risky moderation state, download block, or registry reason, OpenClaw shows the trust details and asks for confirmation before continuing.
+    ClawHub installs check the selected release trust record before downloading the package. If ClawHub reports a download block, OpenClaw refuses the release. For non-blocking risky scan statuses, risky moderation states, or registry reasons, OpenClaw shows the trust details and asks for confirmation before continuing.
 
     Use `--acknowledge-clawhub-risk` only after reviewing the ClawHub warning and deciding to continue without an interactive prompt. Pending or stale clean trust records warn but do not require acknowledgement.
 
