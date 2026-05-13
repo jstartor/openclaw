@@ -45,6 +45,7 @@ import { resolveProviderInstallCatalogEntries } from "../../../plugins/provider-
 import { updateNpmInstalledPlugins } from "../../../plugins/update.js";
 import { resolveWebSearchInstallCatalogEntry } from "../../../plugins/web-search-install-catalog.js";
 import { normalizeOptionalLowercaseString } from "../../../shared/string-coerce.js";
+import { sanitizeTerminalText } from "../../../terminal/safe-text.js";
 import { resolveUserPath } from "../../../utils.js";
 import { VERSION } from "../../../version.js";
 import { asObjectRecord } from "./object.js";
@@ -101,7 +102,8 @@ function appendClawHubRiskAcknowledgementGuidance(params: {
   if (!params.spec || !params.message.includes("--acknowledge-clawhub-risk")) {
     return params.message;
   }
-  return `${params.message} To review and acknowledge this ClawHub package, run \`openclaw plugins install ${params.spec} --acknowledge-clawhub-risk\` from a trusted shell, then rerun repair.`;
+  const sanitizedSpec = sanitizeTerminalText(params.spec);
+  return `${params.message} To review and acknowledge this ClawHub package, run \`openclaw plugins install ${sanitizedSpec} --acknowledge-clawhub-risk\` from a trusted shell, then rerun repair.`;
 }
 
 function recordClawHubInstallSpec(record: PluginInstallRecord | undefined): string | undefined {
@@ -546,6 +548,7 @@ async function installCandidate(params: {
   const clawhubInstallSpec = clawhubSpecs?.installSpec ?? candidate.clawhubSpec;
   const npmInstallSpec = npmSpecs?.installSpec ?? candidate.npmSpec;
   if (clawhubInstallSpec && candidate.defaultChoice !== "npm") {
+    const clawhubInstallSpecLabel = sanitizeTerminalText(clawhubInstallSpec);
     const clawhubResult = await installPluginFromClawHub({
       spec: clawhubInstallSpec,
       extensionsDir,
@@ -569,13 +572,15 @@ async function installCandidate(params: {
             installedAt: new Date().toISOString(),
           },
         },
-        changes: [`Installed missing configured plugin "${pluginId}" from ${clawhubInstallSpec}.`],
+        changes: [
+          `Installed missing configured plugin "${pluginId}" from ${clawhubInstallSpecLabel}.`,
+        ],
         notices: warnings,
         warnings: [],
       };
     }
     if (!npmInstallSpec || !shouldFallbackClawHubToNpm(clawhubResult)) {
-      const failure = `Failed to install missing configured plugin "${candidate.pluginId}" from ${clawhubInstallSpec}: ${clawhubResult.error}`;
+      const failure = `Failed to install missing configured plugin "${candidate.pluginId}" from ${clawhubInstallSpecLabel}: ${clawhubResult.error}`;
       return {
         records: params.records,
         changes: [],
@@ -589,8 +594,9 @@ async function installCandidate(params: {
         ],
       };
     }
+    const npmInstallSpecLabel = sanitizeTerminalText(npmInstallSpec);
     changes.push(
-      `ClawHub ${clawhubInstallSpec} unavailable for "${candidate.pluginId}"; falling back to npm ${npmInstallSpec}.`,
+      `ClawHub ${clawhubInstallSpecLabel} unavailable for "${candidate.pluginId}"; falling back to npm ${npmInstallSpecLabel}.`,
     );
   }
   if (!npmInstallSpec) {

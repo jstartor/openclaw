@@ -274,6 +274,43 @@ describe("repairMissingConfiguredPluginInstalls", () => {
     );
   });
 
+  it("sanitizes ClawHub acknowledgement guidance specs before rendering commands", async () => {
+    mocks.installPluginFromClawHub.mockResolvedValueOnce({
+      ok: false,
+      code: "clawhub_risk_acknowledgement_required",
+      error:
+        'ClawHub release "@openclaw/plugin-matrix@stable" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.',
+    });
+    mocks.listChannelPluginCatalogEntries.mockReturnValue([
+      {
+        id: "matrix",
+        pluginId: "matrix",
+        meta: { label: "Matrix" },
+        install: {
+          clawhubSpec: "clawhub:@openclaw/plugin-matrix\n\u001b[31m@stable",
+        },
+      },
+    ]);
+
+    const { repairMissingConfiguredPluginInstalls } =
+      await import("./missing-configured-plugin-install.js");
+    const result = await repairMissingConfiguredPluginInstalls({
+      cfg: {
+        channels: {
+          matrix: { enabled: true, homeserver: "https://matrix.example.org" },
+        },
+      },
+      env: {},
+    });
+
+    const warning = result.warnings[0] ?? "";
+    expect(warning).toContain(
+      "openclaw plugins install clawhub:@openclaw/plugin-matrix\\n@stable --acknowledge-clawhub-risk",
+    );
+    expect(warning).not.toContain("\u001b");
+    expect(warning).not.toContain("plugin-matrix\n");
+  });
+
   it("installs a missing channel plugin selected by environment config from npm", async () => {
     mocks.installPluginFromNpmSpec.mockResolvedValueOnce({
       ok: true,
