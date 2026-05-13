@@ -428,6 +428,10 @@ function formatClawHubTrustWarning(params: {
   return `ClawHub trust warning for "${sanitizeTerminalText(params.packageName)}@${sanitizeTerminalText(params.version)}": ${details.join("; ")}.${riskSuffix}`;
 }
 
+function formatClawHubReleaseLabel(packageName: string, version: string): string {
+  return `${sanitizeTerminalText(packageName)}@${sanitizeTerminalText(version)}`;
+}
+
 function validateClawHubSecurityIdentity(params: {
   security: ClawHubPackageSecurityResponse;
   packageName: string;
@@ -436,14 +440,14 @@ function validateClawHubSecurityIdentity(params: {
   const responsePackageName = normalizeOptionalString(params.security.package?.name);
   if (responsePackageName !== params.packageName) {
     return buildClawHubInstallFailure(
-      `ClawHub release trust check for "${params.packageName}@${params.version}" returned package "${responsePackageName ?? "unknown"}".`,
+      `ClawHub release trust check for "${formatClawHubReleaseLabel(params.packageName, params.version)}" returned package "${sanitizeTerminalText(responsePackageName ?? "unknown")}".`,
       CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_SECURITY_UNAVAILABLE,
     );
   }
   const responseVersion = normalizeOptionalString(params.security.release?.version);
   if (responseVersion !== params.version) {
     return buildClawHubInstallFailure(
-      `ClawHub release trust check for "${params.packageName}@${params.version}" returned version "${responseVersion ?? "unknown"}".`,
+      `ClawHub release trust check for "${formatClawHubReleaseLabel(params.packageName, params.version)}" returned version "${sanitizeTerminalText(responseVersion ?? "unknown")}".`,
       CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_SECURITY_UNAVAILABLE,
     );
   }
@@ -480,7 +484,7 @@ async function ensureClawHubPackageTrustAcknowledged(params: {
     trust = security.trust;
   } catch (error) {
     return buildClawHubInstallFailure(
-      `ClawHub release trust check failed for "${params.packageName}@${params.version}": ${formatErrorMessage(error)}`,
+      `ClawHub release trust check failed for "${formatClawHubReleaseLabel(params.packageName, params.version)}": ${sanitizeTerminalText(formatErrorMessage(error))}`,
       CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_SECURITY_UNAVAILABLE,
     );
   }
@@ -495,7 +499,7 @@ async function ensureClawHubPackageTrustAcknowledged(params: {
   if (trust.blockedFromDownload) {
     params.logger?.warn?.(warning);
     return buildClawHubInstallFailure(
-      `ClawHub release "${params.packageName}@${params.version}" is blocked from download by ClawHub.`,
+      `ClawHub release "${formatClawHubReleaseLabel(params.packageName, params.version)}" is blocked from download by ClawHub.`,
       CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_DOWNLOAD_BLOCKED,
     );
   }
@@ -521,7 +525,7 @@ async function ensureClawHubPackageTrustAcknowledged(params: {
     return null;
   }
   return buildClawHubInstallFailure(
-    `ClawHub release "${params.packageName}@${params.version}" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.`,
+    `ClawHub release "${formatClawHubReleaseLabel(params.packageName, params.version)}" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.`,
     CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED,
   );
 }

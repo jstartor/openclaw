@@ -10,6 +10,7 @@ import type { OpenClawConfig, ConfigFileSnapshot } from "../config/types.opencla
 import { writePackageDistInventory } from "../infra/package-dist-inventory.js";
 import { isBetaTag } from "../infra/update-channels.js";
 import type { UpdateRunResult } from "../infra/update-runner.js";
+import type { ClawHubRiskAcknowledgementRequest } from "../plugins/clawhub.js";
 import { withEnvAsync } from "../test-utils/env.js";
 import { VERSION } from "../version.js";
 import { createCliRuntimeCapture } from "./test-runtime-capture.js";
@@ -19,6 +20,10 @@ const confirm = vi.fn();
 const select = vi.fn();
 const spinner = vi.fn(() => ({ start: vi.fn(), stop: vi.fn() }));
 const isCancel = (value: unknown) => value === "cancel";
+
+type ClawHubRiskHandler = (
+  request: ClawHubRiskAcknowledgementRequest,
+) => boolean | Promise<boolean>;
 
 const readPackageName = vi.fn();
 const readPackageVersion = vi.fn();
@@ -418,6 +423,23 @@ describe("update-cli", () => {
   };
   const lastNpmPluginUpdateCall = () =>
     npmPluginUpdateCall(updateNpmInstalledPlugins.mock.calls.length - 1);
+
+  const hasClawHubRiskHandler = (
+    call: Record<string, unknown> | undefined,
+  ): call is Record<string, unknown> & { onClawHubRisk: ClawHubRiskHandler } =>
+    typeof call?.onClawHubRisk === "function";
+
+  const getConfirmMessage = (): string => {
+    const options = confirm.mock.calls[0]?.[0];
+    if (!options || typeof options !== "object" || !("message" in options)) {
+      throw new Error("expected confirm message");
+    }
+    const message = options.message;
+    if (typeof message !== "string") {
+      throw new Error("expected confirm message to be a string");
+    }
+    return message;
+  };
 
   const replaceConfigCall = (index = 0) => vi.mocked(replaceConfigFile).mock.calls[index]?.[0];
   const lastReplaceConfigCall = () =>
@@ -2950,6 +2972,46 @@ describe("update-cli", () => {
     expect(syncPluginCall()?.onClawHubRisk).toBeUndefined();
     expect(npmPluginUpdateCall()?.onClawHubRisk).toBeUndefined();
     expect(lastNpmPluginUpdateCall()?.onClawHubRisk).toBeUndefined();
+  });
+
+  it("sanitizes ClawHub risk prompt labels during post-update plugin work", async () => {
+    const tempDir = createCaseDir("openclaw-update");
+    mockPackageInstallStatus(tempDir);
+    setTty(true);
+    setStdoutTty(true);
+
+    await updateCommand({
+      channel: "beta",
+      yes: true,
+      restart: false,
+    });
+
+    const syncCall = syncPluginCall();
+    expect(hasClawHubRiskHandler(syncCall)).toBe(true);
+    if (!hasClawHubRiskHandler(syncCall)) {
+      throw new Error("expected ClawHub risk prompt handler");
+    }
+
+    confirm.mockClear();
+    confirm.mockResolvedValueOnce(true);
+    await syncCall.onClawHubRisk({
+      packageName: "demo\npkg",
+      version: "1.2.3\u001b[2K",
+      trust: {
+        scanStatus: "suspicious",
+        moderationState: null,
+        blockedFromDownload: false,
+        reasons: ["payload_strings"],
+        pending: false,
+        stale: false,
+      },
+      warning: "warning",
+    });
+
+    const message = getConfirmMessage();
+    expect(message).toContain('"demo\\npkg@1.2.3"');
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\u001b");
   });
 
   it("persists channel and runs post-update work after switching from package to git", async () => {

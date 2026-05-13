@@ -1,4 +1,5 @@
 import type { ClawHubRiskAcknowledgementRequest } from "../plugins/clawhub.js";
+import { sanitizeTerminalText } from "../terminal/safe-text.js";
 import { promptYesNo } from "./prompt.js";
 
 export type ClawHubRiskAcknowledgementCliOptions = {
@@ -22,7 +23,7 @@ export function resolveClawHubRiskAcknowledgementCliOptions(params: {
         ? undefined
         : async (request) =>
             await promptYesNo(
-              `Continue ${params.action} ClawHub package "${request.packageName}@${request.version}" despite this warning?`,
+              `Continue ${params.action} ClawHub package "${sanitizeTerminalText(request.packageName)}@${sanitizeTerminalText(request.version)}" despite this warning?`,
             ),
   };
 }

@@ -74,6 +74,7 @@ import { runCommandWithTimeout } from "../../process/exec.js";
 import { defaultRuntime } from "../../runtime.js";
 import { normalizeOptionalString } from "../../shared/string-coerce.js";
 import { stylePromptMessage } from "../../terminal/prompt-style.js";
+import { sanitizeTerminalText } from "../../terminal/safe-text.js";
 import { theme } from "../../terminal/theme.js";
 import { resolveUserPath } from "../../utils.js";
 import { replaceCliName, resolveCliName } from "../cli-name.js";
@@ -188,7 +189,7 @@ function resolveUpdateClawHubRiskAcknowledgementOptions(opts: UpdateCommandOptio
     onClawHubRisk: async (request) => {
       const ok = await confirm({
         message: stylePromptMessage(
-          `Continue updating ClawHub package "${request.packageName}@${request.version}" despite this warning?`,
+          `Continue updating ClawHub package "${sanitizeTerminalText(request.packageName)}@${sanitizeTerminalText(request.version)}" despite this warning?`,
         ),
         initialValue: false,
       });
