@@ -40,6 +40,29 @@ describe("resolveClawHubRiskAcknowledgementCliOptions", () => {
     restoreTty();
   });
 
+  it("does not create a prompt handler when ClawHub risk is already acknowledged", () => {
+    setTty(true);
+
+    const options = resolveClawHubRiskAcknowledgementCliOptions({
+      acknowledgeClawHubRisk: true,
+      action: "installing",
+    });
+
+    expect(options.acknowledgeClawHubRisk).toBe(true);
+    expect(options.onClawHubRisk).toBeUndefined();
+  });
+
+  it("does not create a prompt handler outside an interactive terminal", () => {
+    setTty(false);
+
+    const options = resolveClawHubRiskAcknowledgementCliOptions({
+      action: "updating",
+    });
+
+    expect(options.acknowledgeClawHubRisk).toBeUndefined();
+    expect(options.onClawHubRisk).toBeUndefined();
+  });
+
   it("sanitizes ClawHub package labels before prompting", async () => {
     promptYesNoMock.mockResolvedValueOnce(true);
     setTty(true);

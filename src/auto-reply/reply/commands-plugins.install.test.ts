@@ -186,6 +186,34 @@ describe("handleCommands /plugins install", () => {
     });
   });
 
+  it("reports risky ClawHub install failures without persisting install metadata", async () => {
+    installPluginFromClawHubMock.mockResolvedValue({
+      ok: false,
+      code: "CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED",
+      error:
+        'ClawHub release "@openclaw/risky-demo@1.2.3" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.',
+    });
+
+    await withTempHome("openclaw-command-plugins-home-", async () => {
+      const workspaceDir = await workspaceHarness.createWorkspace();
+      const params = buildPluginsParams(
+        "/plugins install clawhub:@openclaw/risky-demo@1.2.3",
+        workspaceDir,
+      );
+      const result = await handlePluginsCommand(params, true);
+      if (result === null) {
+        throw new Error("expected plugin install result");
+      }
+
+      expect(result.reply?.text).toContain("has trust warnings");
+      expect(result.reply?.text).toContain("--acknowledge-clawhub-risk");
+      expect(mockFirstObjectArg(installPluginFromClawHubMock).spec).toBe(
+        "clawhub:@openclaw/risky-demo@1.2.3",
+      );
+      expect(persistPluginInstallMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("refuses plugin installs in Nix mode before package installer side effects", async () => {
     const previousNixMode = process.env.OPENCLAW_NIX_MODE;
     process.env.OPENCLAW_NIX_MODE = "1";
