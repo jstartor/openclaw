@@ -290,9 +290,11 @@ async function installPluginFromPluginsCommand(params: {
     });
     if (!result.ok) {
       if (result.code === CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED) {
+        const warning = result.warning ?? warnings.join("\n");
+        const warningPrefix = warning ? `${warning} ` : "";
         return {
           ok: false,
-          error: `${result.error} The /plugins chat command cannot acknowledge ClawHub risk; run the local openclaw plugins install command with --acknowledge-clawhub-risk from a trusted shell after reviewing the warning.`,
+          error: `${warningPrefix}${result.error} The /plugins chat command cannot acknowledge ClawHub risk; run the local openclaw plugins install command with --acknowledge-clawhub-risk from a trusted shell after reviewing the warning.`,
         };
       }
       return { ok: false, error: result.error };

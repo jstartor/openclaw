@@ -245,11 +245,14 @@ describe("handleCommands /plugins install", () => {
   });
 
   it("reports risky ClawHub install failures without persisting install metadata", async () => {
+    const warning =
+      'ClawHub trust warning for "@openclaw/risky-demo@1.2.3": scan=suspicious; moderation=none; blockedFromDownload=false; pending=false; stale=false; reasons=payload_string. Risk signals: scan status suspicious, payload_string.';
     installPluginFromClawHubMock.mockResolvedValue({
       ok: false,
       code: "clawhub_risk_acknowledgement_required",
       error:
         'ClawHub release "@openclaw/risky-demo@1.2.3" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.',
+      warning,
     });
 
     await withTempHome("openclaw-command-plugins-home-", async () => {
@@ -264,6 +267,8 @@ describe("handleCommands /plugins install", () => {
       }
 
       expect(result.reply?.text).toContain("has trust warnings");
+      expect(result.reply?.text).toContain("scan=suspicious");
+      expect(result.reply?.text).toContain("payload_string");
       expect(result.reply?.text).toContain("--acknowledge-clawhub-risk");
       expect(result.reply?.text).toContain("local openclaw plugins install command");
       expect(result.reply?.text).toContain("trusted shell");

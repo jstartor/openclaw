@@ -1196,13 +1196,30 @@ export async function updatePluginsAfterCoreUpdate(params: {
     return invalid.result;
   }
 
-  const pluginLogger = params.opts.json
-    ? {}
-    : {
-        info: (msg: string) => defaultRuntime.log(msg),
-        warn: (msg: string) => defaultRuntime.log(theme.warn(msg)),
-        error: (msg: string) => defaultRuntime.log(theme.error(msg)),
-      };
+  const clawHubTrustNotices = new Set<string>();
+  const recordClawHubTrustNotice = (message: string): void => {
+    if (message.startsWith("ClawHub trust warning ")) {
+      clawHubTrustNotices.add(message);
+    }
+  };
+  const pluginLogger = {
+    info: (msg: string) => {
+      if (!params.opts.json) {
+        defaultRuntime.log(msg);
+      }
+    },
+    warn: (msg: string) => {
+      recordClawHubTrustNotice(msg);
+      if (!params.opts.json) {
+        defaultRuntime.log(theme.warn(msg));
+      }
+    },
+    error: (msg: string) => {
+      if (!params.opts.json) {
+        defaultRuntime.log(theme.error(msg));
+      }
+    },
+  };
 
   if (!params.opts.json) {
     defaultRuntime.log("");
@@ -1418,6 +1435,14 @@ export async function updatePluginsAfterCoreUpdate(params: {
       workspaceDir: params.root,
       installRecords: nextInstallRecords,
       logger: pluginLogger,
+    });
+  }
+
+  for (const notice of clawHubTrustNotices) {
+    warnings.push({
+      reason: notice,
+      message: notice,
+      guidance: [],
     });
   }
 

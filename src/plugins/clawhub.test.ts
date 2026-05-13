@@ -191,6 +191,7 @@ type InstallFailure = {
   code?: string;
   error: string;
   ok: false;
+  warning?: string;
 };
 
 function mockCallArg(mock: MockWithCalls, callIndex = 0, argIndex = 0): unknown {
@@ -393,6 +394,8 @@ describe("installPluginFromClawHub", () => {
     const failure = expectInstallFailure(result);
     expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_DOWNLOAD_BLOCKED);
     expect(failure.error).toContain("blocked from download");
+    expect(failure.warning).toContain("scan=malicious");
+    expect(failure.warning).toContain("manual_moderation");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('ClawHub trust warning for "demo@2026.3.22"'),
     );
@@ -427,6 +430,8 @@ describe("installPluginFromClawHub", () => {
 
     const failure = expectInstallFailure(result);
     expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED);
+    expect(failure.warning).toContain("scan=not-run");
+    expect(failure.warning).toContain("blockedFromDownload=false");
     expect(downloadClawHubPackageArchiveMock).not.toHaveBeenCalled();
     expect(installPluginFromArchiveMock).not.toHaveBeenCalled();
   });
@@ -729,6 +734,9 @@ describe("installPluginFromClawHub", () => {
 
     const failure = expectInstallFailure(result);
     expect(failure.code).toBe(CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED);
+    expect(failure.warning).toContain("scan=pending");
+    expect(failure.warning).toContain("blockedFromDownload=false");
+    expect(failure.warning).toContain("scan:pending");
     expect(downloadClawHubPackageArchiveMock).not.toHaveBeenCalled();
   });
 

@@ -77,6 +77,7 @@ type ClawHubInstallFailure = {
   ok: false;
   error: string;
   code?: ClawHubInstallErrorCode;
+  warning?: string;
 };
 
 type ClawHubFileEntryLike = {
@@ -330,8 +331,14 @@ export function formatClawHubSpecifier(params: { name: string; version?: string 
 function buildClawHubInstallFailure(
   error: string,
   code?: ClawHubInstallErrorCode,
+  warning?: string,
 ): ClawHubInstallFailure {
-  return { ok: false, error, code };
+  return {
+    ok: false,
+    error,
+    ...(code ? { code } : {}),
+    ...(warning ? { warning } : {}),
+  };
 }
 
 function isClawHubInstallFailure(value: unknown): value is ClawHubInstallFailure {
@@ -516,6 +523,7 @@ async function ensureClawHubPackageTrustAcknowledged(params: {
     return buildClawHubInstallFailure(
       `ClawHub release "${formatClawHubReleaseLabel(params.packageName, params.version)}" is blocked from download by ClawHub.`,
       CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_DOWNLOAD_BLOCKED,
+      warning,
     );
   }
 
@@ -542,6 +550,7 @@ async function ensureClawHubPackageTrustAcknowledged(params: {
   return buildClawHubInstallFailure(
     `ClawHub release "${formatClawHubReleaseLabel(params.packageName, params.version)}" has trust warnings. Review the package and rerun with --acknowledge-clawhub-risk to continue.`,
     CLAWHUB_INSTALL_ERROR_CODE.CLAWHUB_RISK_ACKNOWLEDGEMENT_REQUIRED,
+    warning,
   );
 }
 

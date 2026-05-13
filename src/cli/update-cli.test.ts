@@ -1364,6 +1364,36 @@ describe("update-cli", () => {
     );
   });
 
+  it("includes non-blocking ClawHub trust warnings in json post-core plugin output", async () => {
+    const trustWarning =
+      'ClawHub trust warning for "@openclaw/demo@1.0.0": scan=pending; moderation=none; blockedFromDownload=false; pending=true; stale=false; reasons=pending.';
+    updateNpmInstalledPlugins.mockImplementationOnce(
+      async (params: { config: OpenClawConfig; logger?: { warn?: (message: string) => void } }) => {
+        params.logger?.warn?.(trustWarning);
+        return {
+          changed: false,
+          config: params.config,
+          outcomes: [
+            {
+              pluginId: "demo",
+              status: "unchanged",
+              message: "demo is up to date.",
+            },
+          ],
+        };
+      },
+    );
+    vi.mocked(defaultRuntime.writeJson).mockClear();
+
+    await updateCommand({ json: true, restart: false });
+
+    const jsonOutput = lastWriteJsonCall() as UpdateRunResult | undefined;
+    expect(jsonOutput?.postUpdate?.plugins?.status).toBe("warning");
+    expect(pluginWarning(jsonOutput)?.reason).toBe(trustWarning);
+    expect(pluginWarning(jsonOutput)?.guidance).toEqual([]);
+    expect(pluginOutcome(jsonOutput)?.status).toBe("unchanged");
+  });
+
   it("detects missing plugin payloads from persisted records before npm updates", async () => {
     const installPath = createCaseDir("openclaw-missing-plugin-payload");
     fsSync.mkdirSync(installPath, { recursive: true });
